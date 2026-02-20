@@ -28,7 +28,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   // FAQ / system prompt (generated from public/mock-responses.json)
-  const [, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
+  const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
   const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -62,13 +62,20 @@ export default function App() {
       });
 
     // initialize Gemini client & chat session on mount
-    if (!API_KEY) return;
-    try {
-      aiRef.current = new GoogleGenAI({ apiKey: API_KEY });
-      chatRef.current = aiRef.current.chats.create({ model: "gemini-2.5-flash" });
-    } catch (err) {
-      console.error("Gemini init error:", err);
-    }
+    (async () => {
+      if (!API_KEY) return;
+      try {
+        aiRef.current = new GoogleGenAI({ apiKey: API_KEY });
+        const maybeChat = aiRef.current.chats.create({ model: "gemini-2.5-flash" });
+        if (maybeChat && typeof (maybeChat as any).then === "function") {
+          chatRef.current = await maybeChat;
+        } else {
+          chatRef.current = maybeChat;
+        }
+      } catch (err) {
+        console.error("Gemini init error:", err);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -132,7 +139,8 @@ export default function App() {
               : part?.delta ?? part?.text ?? part?.content ?? part?.candidate?.content ?? part?.candidates?.[0]?.content ?? part?.response?.text ?? part?.output?.[0]?.content?.[0]?.text ?? null;
 
           if (chunk) {
-            accumulated += chunk;
+            const piece = String(chunk);
+            accumulated += piece;
             setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: normalizeMarkdown(accumulated) } : m)));
           }
         }
@@ -142,12 +150,35 @@ export default function App() {
       } else {
         // fallback: non-streaming promise result
         const response = await maybeStream;
-        const textResponse = response?.text ?? response?.candidates?.[0]?.content ?? String(response ?? "");
+        const textResponse = String(response?.text ?? response?.candidates?.[0]?.content ?? response ?? "");
         setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: normalizeMarkdown(textResponse), pending: false } : m)));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gemini API error:", err);
-      setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "API 呼び出しでエラーが発生しました。コンソールを参照してください。", pending: false } : m)));
+
+      const messageLower = String(err?.message ?? err?.error?.message ?? "").toLowerCase();
+      const isQuotaError =
+        err?.error?.code === 429 ||
+        err?.code === 429 ||
+        err?.status === "RESOURCE_EXHAUSTED" ||
+        /quota exceeded|resource_exhausted|rate limit|too many requests/.test(messageLower);
+
+      // Try local FAQ fallback if available
+      const matchedFaq = faqs.find((f) => {
+        const fq = f.question.trim().toLowerCase();
+        const q = trimmed.toLowerCase();
+        return fq === q || q.includes(fq) || fq.includes(q);
+      });
+
+      if (matchedFaq) {
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: matchedFaq.answer, pending: false } : m)));
+      } else if (isQuotaError) {
+        const userMsg =
+          "現在リクエストが集中しているため、処理できません（クォータ超過）。しばらく経ってから再度お試しください。";
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: userMsg, pending: false } : m)));
+      } else {
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "API 呼び出しでエラーが発生しました。コンソールを参照してください。", pending: false } : m)));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -260,8 +291,9 @@ export default function App() {
 }
 
 
-function normalizeMarkdown(text: string) {
-  if (!text) return text;
+function normalizeMarkdown(input: any) {
+  const text = input == null ? "" : String(input);
+  if (text === "") return text;
 
   // Decode a few common HTML entities that models sometimes return
   const entities: Record<string, string> = {
@@ -272,13 +304,13 @@ function normalizeMarkdown(text: string) {
     '&#39;': "'",
     '&ast;': '*',
   };
-  text = text.replace(/&(amp|lt|gt|quot|#39|ast);/g, (m) => entities[m] ?? m);
+  let s = text.replace(/&(amp|lt|gt|quot|#39|ast);/g, (m) => entities[m] ?? m);
 
   // Unescape backslash-escaped markdown markers so react-markdown can parse them.
-  // e.g. "\*\*bold\*\*" -> "**bold**"
-  text = text.replace(/\\([*_`~\\])/g, '$1');
+  // e.g. "\\*\\*bold\\*\\*" -> "**bold**"
+  s = s.replace(/\\([*_`~\\])/g, '$1');
 
-  return text;
+  return s;
 }
 
 function formatTime(d: Date | string) {
