@@ -166,7 +166,7 @@ export default function App() {
         <header className="px-6 py-4 border-b bg-linear-to-r from-sky-50 to-white flex items-center justify-between gap-4">
           <div>
             <h1 className="text-lg font-semibold text-slate-800">AI 採用サポート</h1>
-            <p className="text-sm text-slate-500">Gemini（実際のAPI）と連携して応答を取得します。</p>
+            <p className="text-sm text-slate-500">AIと連携してソースクリエイトの採用に関するご質問にお答えします。</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -176,7 +176,7 @@ export default function App() {
                 API_KEY ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
               )}
             >
-              {API_KEY ? "Gemini: 有効" : "Gemini: キー未設定"}
+              {API_KEY ? "AI: 有効" : "AI: 無効"}
             </span>
           </div>
         </header>
@@ -229,7 +229,7 @@ export default function App() {
 
 
             {!API_KEY && (
-              <div className="mb-3 text-sm text-rose-600">VITE_GEMINI_API_KEY が未設定です。ルートに .env ファイルを作成してください。</div>
+              <div className="mb-3 text-sm text-rose-600">APIキーが未設定です</div>
             )}
 
             <div className="flex gap-3">
@@ -253,7 +253,7 @@ export default function App() {
           </div>
         </main>
 
-        <footer className="px-6 py-3 border-t text-xs text-slate-500">※ Gemini モードは VITE_GEMINI_API_KEY を使用します。キーは公開しないでください。</footer>
+        <footer className="px-6 py-3 border-t text-xs text-slate-500">※ 該当する質問以外は回答できません。</footer>
       </div>
     </div>
   );
