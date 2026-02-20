@@ -197,7 +197,7 @@ export default function App() {
         <header className="px-6 py-4 border-b bg-linear-to-r from-sky-50 to-white flex items-center justify-between gap-4">
           <div>
             <h1 className="text-lg font-semibold text-slate-800">AI 採用サポート</h1>
-            <p className="text-sm text-slate-500">AIと連携してソースクリエイトの採用に関するご質問にお答えします。</p>
+            <p className="text-sm text-slate-500">AIと連携して採用に関するご質問にお答えします。</p>
           </div>
 
           <div className="flex items-center gap-3">
