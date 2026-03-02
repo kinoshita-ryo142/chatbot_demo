@@ -162,13 +162,13 @@ export default function App() {
         err?.code === 429 ||
         err?.status === "RESOURCE_EXHAUSTED" ||
         /quota exceeded|resource_exhausted|rate limit|too many requests/.test(messageLower);
+      const isApiKeyError =
+        err?.error?.code === 400 ||
+        err?.status === "INVALID_ARGUMENT" ||
+        /api key not found|api_key_invalid|invalid_argument/.test(messageLower);
 
-      // Try local FAQ fallback if available
-      const matchedFaq = faqs.find((f) => {
-        const fq = f.question.trim().toLowerCase();
-        const q = trimmed.toLowerCase();
-        return fq === q || q.includes(fq) || fq.includes(q);
-      });
+      // Try local FAQ fallback with fuzzy matching
+      const matchedFaq = findBestFaqMatch(faqs, trimmed);
 
       if (matchedFaq) {
         setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: matchedFaq.answer, pending: false } : m)));
@@ -176,8 +176,12 @@ export default function App() {
         const userMsg =
           "現在リクエストが集中しているため、処理できません（クォータ超過）。しばらく経ってから再度お試しください。";
         setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: userMsg, pending: false } : m)));
+      } else if (isApiKeyError) {
+        const userMsg =
+          "APIキーが無効または未設定です。管理者に設定をご確認ください。";
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: userMsg, pending: false } : m)));
       } else {
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "API 呼び出しでエラーが発生しました。コンソールを参照してください。", pending: false } : m)));
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "申し訳ございませんが、現在回答できません。詳細は採用窓口(recruit@source.co.jp)までお問い合わせください。", pending: false } : m)));
       }
     } finally {
       setIsLoading(false);
@@ -290,6 +294,45 @@ export default function App() {
   );
 }
 
+
+/**
+ * Fuzzy FAQ matching:
+ * 1. Exact or substring match (original logic)
+ * 2. Word-overlap scoring — returns the best match above a threshold
+ */
+function findBestFaqMatch(
+  faqs: Array<{ question: string; answer: string }>,
+  query: string
+): { question: string; answer: string } | undefined {
+  const q = query.trim().toLowerCase();
+
+  // 1. exact / substring
+  const exact = faqs.find((f) => {
+    const fq = f.question.trim().toLowerCase();
+    return fq === q || q.includes(fq) || fq.includes(q);
+  });
+  if (exact) return exact;
+
+  // 2. word-overlap
+  const queryWords = q.split(/[\s　、。？！,.!?]+/).filter(Boolean);
+  if (queryWords.length === 0) return undefined;
+
+  let bestScore = 0;
+  let bestFaq: { question: string; answer: string } | undefined;
+
+  for (const f of faqs) {
+    const fqWords = f.question.trim().toLowerCase().split(/[\s　、。？！,.!?]+/).filter(Boolean);
+    const common = queryWords.filter((w) => fqWords.some((fw) => fw.includes(w) || w.includes(fw)));
+    const score = common.length / Math.max(queryWords.length, fqWords.length);
+    if (score > bestScore) {
+      bestScore = score;
+      bestFaq = f;
+    }
+  }
+
+  // threshold: at least 40% word overlap
+  return bestScore >= 0.4 ? bestFaq : undefined;
+}
 
 function normalizeMarkdown(input: any) {
   const text = input == null ? "" : String(input);
