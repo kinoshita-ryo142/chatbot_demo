@@ -181,7 +181,7 @@ export default function App() {
           "APIキーが無効または未設定です。管理者に設定をご確認ください。";
         setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: userMsg, pending: false } : m)));
       } else {
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "申し訳ございませんが、現在回答できません。詳細は採用窓口(recruit@source.co.jp)までお問い合わせください。", pending: false } : m)));
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "申し訳ございませんが、現在回答できません。「えんサポート24」0120-97-3655(24時間受付)へご連絡ください。", pending: false } : m)));
       }
     } finally {
       setIsLoading(false);
@@ -279,7 +279,7 @@ export default function App() {
               />
               <button
                 onClick={() => sendMessage(input)}
-                className="bg-sky-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-sky-700 disabled:opacity-50"
+                className="bg-[#3A8E42] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#367836] disabled:opacity-50"
                 disabled={!API_KEY || isLoading || input.trim() === ""}
               >
                 送信
