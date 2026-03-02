@@ -198,10 +198,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-lg ring-1 ring-slate-200 overflow-hidden">
-        <header className="px-6 py-4 border-b bg-linear-to-r from-sky-50 to-white flex items-center justify-between gap-4">
+        <header className="px-6 py-4 border-b border-[#A0A0A0] bg-[#3A8E42] flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-lg font-semibold text-slate-800">AI 採用サポート</h1>
-            <p className="text-sm text-slate-500">AIと連携して採用に関するご質問にお答えします。</p>
+            <h1 className="text-lg font-semibold text-white">えんくらぶサポート</h1>
+            <p className="text-sm text-white">入居者様向けのご質問にAIがお答えします。</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -288,7 +288,7 @@ export default function App() {
           </div>
         </main>
 
-        <footer className="px-6 py-3 border-t text-xs text-slate-500">※ 該当する質問以外は回答できません。</footer>
+        <footer className="px-6 py-3 border-t border-[#A0A0A0] text-xs text-slate-500">※ 該当する質問以外は回答できません。</footer>
       </div>
     </div>
   );
