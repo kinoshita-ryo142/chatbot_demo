@@ -46,7 +46,7 @@ export default function App() {
       .then((data: { responses: Array<{ question: string; answer: string }>; default: string }) => {
         setFaqs(data.responses ?? []);
 
-        const header = `あなたは「株式会社ソースクリエイト」の採用サポートAIです。\n以下の【FAQデータ】を元に、お客様の質問に丁寧で分かりやすく答えてください。\n回答は簡潔にまとめ、もしFAQデータにない質問をされた場合は、無理に推測せず「申し訳ございませんが、その質問にはお答えできません。詳細は採用窓口(recruit@source.co.jp)までお問い合わせください。」と案内してください。\n\n【FAQデータ】\n`;
+        const header = `あなたは「株式会社えん賃貸管理」のサポートAIです。\n以下の【FAQデータ】を元に、お客様の質問に丁寧で分かりやすく答えてください。\n回答は簡潔にまとめ、もしFAQデータにない質問をされた場合は、無理に推測せず「申し訳ございませんが、その質問にはお答えできません。「えんサポート24」0120-97-3655(24時間受付)へご連絡ください。」と案内してください。\n\n【FAQデータ】\n`;
 
         const faqText = (data.responses ?? [])
           .map((r) => `Q: ${r.question}\nA: ${r.answer}`)
