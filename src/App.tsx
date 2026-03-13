@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Bot, BotOff } from "lucide-react";
 import { cn } from "./lib/utils";
 
 const API_KEY = (import.meta.env.VITE_API_KEY as string) || "";
@@ -122,11 +123,11 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span
               className={cn(
-                "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium",
                 API_KEY ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
               )}
             >
-              {API_KEY ? "AI: 有効" : "AI: 無効"}
+              {API_KEY ? <><Bot size={20} /> 有効</> : <><BotOff size={20} /> 無効</>}
             </span>
           </div>
         </header>
@@ -138,39 +139,43 @@ export default function App() {
                 <div
                   className={cn(
                     "max-w-[78%] px-4 py-2 rounded-xl wrap-break-word",
-                    m.role === "user" ? "bg-sky-600 text-white rounded-br-none" : "bg-slate-100 text-slate-900 rounded-bl-none"
+                    m.role === "user" ? "border border-sky-600 text-gray-600 rounded-br-none" : "bg-slate-100 text-slate-900 rounded-bl-none"
                   )}
                 >
                   <div className="text-sm whitespace-pre-wrap">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code: ({ inline, children }: any) =>
-                          inline ? (
-                            <code className="bg-slate-100 px-1 rounded text-xs font-mono">{children}</code>
-                          ) : (
-                            <pre className="bg-slate-900 text-white p-3 rounded overflow-auto"><code className="font-mono text-sm">{children}</code></pre>
+                    {m.pending ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"></span>
+                      </span>
+                    ) : (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          code: ({ inline, children }: any) =>
+                            inline ? (
+                              <code className="bg-slate-100 px-1 rounded text-xs font-mono">{children}</code>
+                            ) : (
+                              <pre className="bg-slate-900 text-white p-3 rounded overflow-auto"><code className="font-mono text-sm">{children}</code></pre>
+                            ),
+                          a: ({ href, children }: any) => (
+                            <a href={String(href)} target="_blank" rel="noopener noreferrer" className="text-sky-600 underline">
+                              {children}
+                            </a>
                           ),
-                        a: ({ href, children }: any) => (
-                          <a href={String(href)} target="_blank" rel="noopener noreferrer" className="text-sky-600 underline">
-                            {children}
-                          </a>
-                        ),
-                        strong: ({ children }: any) => <strong className="font-semibold">{children}</strong>,
-                        em: ({ children }: any) => <em className="italic">{children}</em>,
-                      }}
-                    >
-                      {normalizeMarkdown(m.text)}
-                    </ReactMarkdown>
+                          strong: ({ children }: any) => <strong className="font-semibold">{children}</strong>,
+                          em: ({ children }: any) => <em className="italic">{children}</em>,
+                        }}
+                      >
+                        {normalizeMarkdown(m.text)}
+                      </ReactMarkdown>
+                    )}
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1 text-right">{m.time}</div>
+                  <div className="text-[11px] text-gray-500 mt-1 text-right">{m.time}</div>
                 </div>
               </div>
             ))}
-
-            {isLoading && (
-              <div className="text-sm text-slate-500">考え中…</div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>
@@ -194,7 +199,7 @@ export default function App() {
               />
               <button
                 onClick={() => sendMessage(input)}
-                className="bg-[#3A8E42] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#367836] disabled:opacity-50"
+                className="bg-[#0084cf] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#367836] disabled:opacity-50"
                 disabled={!API_KEY || isLoading || input.trim() === ""}
               >
                 送信
@@ -203,7 +208,7 @@ export default function App() {
           </div>
         </main>
 
-        <footer className="px-6 py-3 border-t border-[#A0A0A0] text-xs text-slate-500">※ 該当する質問以外は回答できません。</footer>
+        <footer className="px-6 py-3 border-t border-[#A0A0A0] text-xs text-slate-500">※ ご質問の内容は保存されませんが、個人情報の入力はご遠慮ください。</footer>
       </div>
     </div>
   );
