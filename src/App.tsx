@@ -112,18 +112,18 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-lg ring-1 ring-slate-200 overflow-hidden">
         <header className="px-6 py-4 border-b border-[#A0A0A0] bg-[#3A8E42] flex items-center justify-between gap-4">
           <div>
             <h1 className="text-lg font-semibold text-white">えんくらぶサポート</h1>
-            <p className="text-sm text-white">入居者様向けのご質問にAIがお答えします。</p>
+            <p className="text-sm text-white">入居者様のご質問にAIがお答えします。</p>
           </div>
 
           <div className="flex items-center gap-3">
             <span
               className={cn(
-                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium",
+                "inline-flex items-center gap-1.5 px-1 py-0.5 rounded text-xs font-medium",
                 API_KEY ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
               )}
             >
