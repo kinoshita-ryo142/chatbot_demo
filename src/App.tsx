@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { GoogleGenAI } from "@google/genai";
 import { cn } from "./lib/utils";
 
-const API_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string) || "";
+const API_KEY = (import.meta.env.VITE_API_KEY as string) || "";
+const CHAT_URL = "/api/chat";
 
 type Message = {
   id: string;
@@ -27,56 +27,9 @@ export default function App() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // FAQ / system prompt (generated from public/mock-responses.json)
-  const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
-  const [systemPrompt, setSystemPrompt] = useState<string | null>(null);
-
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Gemini client + chat session refs
-  const aiRef = useRef<any>(null);
-  const chatRef = useRef<any>(null);
-
-
-
-  // load local FAQ -> build SYSTEM_PROMPT
-  useEffect(() => {
-    fetch("/mock-responses.json")
-      .then((r) => r.json())
-      .then((data: { responses: Array<{ question: string; answer: string }>; default: string }) => {
-        setFaqs(data.responses ?? []);
-
-        const header = `あなたは「株式会社えん賃貸管理」のサポートAIです。\n以下の【FAQデータ】を元に、お客様の質問に丁寧で分かりやすく答えてください。\n回答は簡潔にまとめ、もしFAQデータにない質問をされた場合は、無理に推測せず「申し訳ございませんが、その質問にはお答えできません。「えんサポート24」0120-97-3655(24時間受付)へご連絡ください。」と案内してください。\n\n【FAQデータ】\n`;
-
-        const faqText = (data.responses ?? [])
-          .map((r) => `Q: ${r.question}\nA: ${r.answer}`)
-          .join("\n\n");
-
-        const sys = header + faqText + "\n\n返答ルール: FAQに正確に基づいて回答してください。FAQにない場合は上記の謝罪メッセージのみを返してください。";
-        setSystemPrompt(sys);
-      })
-      .catch((err) => {
-        console.error("failed to load mock-responses.json", err);
-        setFaqs([]);
-        setSystemPrompt(null);
-      });
-
-    // initialize Gemini client & chat session on mount
-    (async () => {
-      if (!API_KEY) return;
-      try {
-        aiRef.current = new GoogleGenAI({ apiKey: API_KEY });
-        const maybeChat = aiRef.current.chats.create({ model: "gemini-2.5-flash" });
-        if (maybeChat && typeof (maybeChat as any).then === "function") {
-          chatRef.current = await maybeChat;
-        } else {
-          chatRef.current = maybeChat;
-        }
-      } catch (err) {
-        console.error("Gemini init error:", err);
-      }
-    })();
-  }, []);
+  useEffect(() => {}, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -107,82 +60,44 @@ export default function App() {
 
     setMessages((s) => [...s, pendingMsg]);
 
-    // Gemini mode
     if (!API_KEY) {
       setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "VITE_GEMINI_API_KEY が未設定です。", pending: false } : m)));
-      return;
-    }
-
-    if (!chatRef.current) {
-      setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "チャットセッションの初期化に失敗しました。", pending: false } : m)));
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // prepend SYSTEM_PROMPT to instruct the model to answer only from the FAQ
-      const sys = systemPrompt ?? "FAQ のみを参照してください。該当しなければ謝罪の文面を返してください。";
-      const promptForModel = `${sys}\n\nUser question: ${trimmed}`;
+      const res = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": API_KEY,
+        },
+        body: JSON.stringify({ message: trimmed }),
+      });
 
-      // Try streaming first. SDKs may return an async iterable for stream=true.
-      const maybeStream = chatRef.current.sendMessage({ message: promptForModel, stream: true });
-
-      // async iterable (streaming) path
-      if (maybeStream && typeof (maybeStream as any)[Symbol.asyncIterator] === "function") {
-        let accumulated = "";
-        // eslint-disable-next-line no-undef
-        for await (const part of maybeStream as AsyncIterable<any>) {
-          const chunk =
-            typeof part === "string"
-              ? part
-              : part?.delta ?? part?.text ?? part?.content ?? part?.candidate?.content ?? part?.candidates?.[0]?.content ?? part?.response?.text ?? part?.output?.[0]?.content?.[0]?.text ?? null;
-
-          if (chunk) {
-            const piece = String(chunk);
-            accumulated += piece;
-            setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: normalizeMarkdown(accumulated) } : m)));
-          }
-        }
-
-        // finalize streamed response
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: normalizeMarkdown(accumulated), pending: false } : m)));
-      } else {
-        // fallback: non-streaming promise result
-        const response = await maybeStream;
-        const textResponse = String(response?.text ?? response?.candidates?.[0]?.content ?? response ?? "");
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: normalizeMarkdown(textResponse), pending: false } : m)));
+      if (res.status === 403) {
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "APIキーが無効です。管理者にご確認ください。", pending: false } : m)));
+        return;
       }
-    } catch (err: any) {
-      console.error("Gemini API error:", err);
 
-      const messageLower = String(err?.message ?? err?.error?.message ?? "").toLowerCase();
-      const isQuotaError =
-        err?.error?.code === 429 ||
-        err?.code === 429 ||
-        err?.status === "RESOURCE_EXHAUSTED" ||
-        /quota exceeded|resource_exhausted|rate limit|too many requests/.test(messageLower);
-      const isApiKeyError =
-        err?.error?.code === 400 ||
-        err?.status === "INVALID_ARGUMENT" ||
-        /api key not found|api_key_invalid|invalid_argument/.test(messageLower);
-
-      // Try local FAQ fallback with fuzzy matching
-      const matchedFaq = findBestFaqMatch(faqs, trimmed);
-
-      if (matchedFaq) {
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: matchedFaq.answer, pending: false } : m)));
-      } else if (isQuotaError) {
-        const userMsg =
-          "現在リクエストが集中しているため、処理できません（クォータ超過）。しばらく経ってから再度お試しください。";
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: userMsg, pending: false } : m)));
-      } else if (isApiKeyError) {
-        const userMsg =
-          "APIキーが無効または未設定です。管理者に設定をご確認ください。";
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: userMsg, pending: false } : m)));
-      } else {
-        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "申し訳ございませんが、現在回答できません。「えんサポート24」0120-97-3655(24時間受付)へご連絡ください。", pending: false } : m)));
+      if (res.status === 500) {
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "サーバーエラーが発生しました。しばらく経ってから再度お試しください。", pending: false } : m)));
+        return;
       }
+
+      if (!res.ok) {
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: `エラーが発生しました（HTTP ${res.status}）。しばらくしてから再度お試しください。`, pending: false } : m)));
+        return;
+      }
+
+      const data = await res.json();
+      const reply = String(data?.reply ?? "");
+      setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: normalizeMarkdown(reply), pending: false } : m)));
+    } catch (err) {
+      console.error("Chat API error:", err);
+      setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "申し訳ございませんが、現在回答できません。「えんサポート24」0120-97-3655(24時間受付)へご連絡ください。", pending: false } : m)));
     } finally {
       setIsLoading(false);
     }
@@ -295,44 +210,6 @@ export default function App() {
 }
 
 
-/**
- * Fuzzy FAQ matching:
- * 1. Exact or substring match (original logic)
- * 2. Word-overlap scoring — returns the best match above a threshold
- */
-function findBestFaqMatch(
-  faqs: Array<{ question: string; answer: string }>,
-  query: string
-): { question: string; answer: string } | undefined {
-  const q = query.trim().toLowerCase();
-
-  // 1. exact / substring
-  const exact = faqs.find((f) => {
-    const fq = f.question.trim().toLowerCase();
-    return fq === q || q.includes(fq) || fq.includes(q);
-  });
-  if (exact) return exact;
-
-  // 2. word-overlap
-  const queryWords = q.split(/[\s　、。？！,.!?]+/).filter(Boolean);
-  if (queryWords.length === 0) return undefined;
-
-  let bestScore = 0;
-  let bestFaq: { question: string; answer: string } | undefined;
-
-  for (const f of faqs) {
-    const fqWords = f.question.trim().toLowerCase().split(/[\s　、。？！,.!?]+/).filter(Boolean);
-    const common = queryWords.filter((w) => fqWords.some((fw) => fw.includes(w) || w.includes(fw)));
-    const score = common.length / Math.max(queryWords.length, fqWords.length);
-    if (score > bestScore) {
-      bestScore = score;
-      bestFaq = f;
-    }
-  }
-
-  // threshold: at least 40% word overlap
-  return bestScore >= 0.4 ? bestFaq : undefined;
-}
 
 function normalizeMarkdown(input: any) {
   const text = input == null ? "" : String(input);
