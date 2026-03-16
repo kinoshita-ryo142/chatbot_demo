@@ -112,7 +112,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col lg:h-auto lg:min-h-screen lg:flex-row bg-slate-50 lg:items-center lg:justify-center lg:p-4">
+    <div className="h-svh overflow-hidden flex flex-col lg:h-auto lg:min-h-screen lg:flex-row bg-slate-50 lg:items-center lg:justify-center lg:p-4">
       <div className="flex-1 min-h-0 flex flex-col w-full lg:flex-none lg:max-w-2xl bg-white lg:rounded-2xl shadow-lg ring-1 ring-slate-200 overflow-hidden">
         <header className="px-6 py-4 border-b border-[#A0A0A0] bg-[#3A8E42] flex items-center justify-between gap-4">
           <div>
