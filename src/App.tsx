@@ -20,7 +20,9 @@ export default function App() {
     {
       id: "welcome",
       role: "assistant",
-      text: "こんにちは！質問を入力してください。",
+      text: API_KEY
+        ? "ただいまチャットボットの準備中です。しばらくお待ちください。"
+        : "こんにちは！質問を入力してください。",
       time: formatTime(new Date()),
     },
   ]);
@@ -28,10 +30,66 @@ export default function App() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [serviceDown, setServiceDown] = useState(false);
+  const [checking, setChecking] = useState(!!API_KEY);
+  const [apiReady, setApiReady] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    if (!API_KEY) return;
+
+    (async () => {
+      try {
+        const res = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": API_KEY,
+          },
+          body: JSON.stringify({ message: "ping" }),
+        });
+
+        if (res.ok) {
+          setApiReady(true);
+          setMessages((s) =>
+            s.map((m) =>
+              m.id === "welcome"
+                ? { ...m, text: "こんにちは！質問を入力してください。", pending: false }
+                : m
+            )
+          );
+        } else if (res.status === 503) {
+          setServiceDown(true);
+          setMessages((s) =>
+            s.map((m) =>
+              m.id === "welcome"
+                ? { ...m, text: "現在サービスが停止中です。しばらく経ってから再度お試しください。", pending: false }
+                : m
+            )
+          );
+        } else {
+          setMessages((s) =>
+            s.map((m) =>
+              m.id === "welcome"
+                ? { ...m, text: `接続確認でエラーが発生しました（HTTP ${res.status}）。しばらく経ってから再度お試しください。`, pending: false }
+                : m
+            )
+          );
+        }
+      } catch {
+        setServiceDown(true);
+        setMessages((s) =>
+          s.map((m) =>
+            m.id === "welcome"
+              ? { ...m, text: "申し訳ございませんが、現在回答できません。「えんサポート24」0120-97-3655(24時間受付)へご連絡ください。", pending: false }
+              : m
+          )
+        );
+      } finally {
+        setChecking(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -131,10 +189,10 @@ export default function App() {
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 px-1 py-0.5 rounded text-xs font-medium",
-                API_KEY && !serviceDown ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                API_KEY && apiReady && !serviceDown ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
               )}
             >
-              {API_KEY && !serviceDown ? <><Bot size={20} /> 有効</> : <><BotOff size={20} /> 無効</>}
+              {API_KEY && apiReady && !serviceDown ? <><Bot size={20} /> 有効</> : <><BotOff size={20} /> 無効</>}
             </span>
           </div>
         </header>
@@ -202,12 +260,12 @@ export default function App() {
                 onKeyDown={handleKeyDown}
                 placeholder="ここに入力して Enter で送信..."
                 className="flex-1 resize-none rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-200"
-                disabled={!API_KEY}
+                disabled={!API_KEY || checking || serviceDown}
               />
               <button
                 onClick={() => sendMessage(input)}
                 className="bg-[#0084cf] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#367836] disabled:opacity-50"
-                disabled={!API_KEY || isLoading || input.trim() === ""}
+                disabled={!API_KEY || checking || serviceDown || isLoading || input.trim() === ""}
               >
                 送信
               </button>
