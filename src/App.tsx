@@ -27,6 +27,7 @@ export default function App() {
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [serviceDown, setServiceDown] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -88,6 +89,12 @@ export default function App() {
         return;
       }
 
+      if (res.status === 503) {
+        setServiceDown(true);
+        setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: "現在サービスが停止中です。しばらく経ってから再度お試しください。", pending: false } : m)));
+        return;
+      }
+
       if (!res.ok) {
         setMessages((s) => s.map((m) => (m.id === pendingId ? { ...m, text: `エラーが発生しました（HTTP ${res.status}）。しばらくしてから再度お試しください。`, pending: false } : m)));
         return;
@@ -124,10 +131,10 @@ export default function App() {
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 px-1 py-0.5 rounded text-xs font-medium",
-                API_KEY ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                API_KEY && !serviceDown ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
               )}
             >
-              {API_KEY ? <><Bot size={20} /> 有効</> : <><BotOff size={20} /> 無効</>}
+              {API_KEY && !serviceDown ? <><Bot size={20} /> 有効</> : <><BotOff size={20} /> 無効</>}
             </span>
           </div>
         </header>
